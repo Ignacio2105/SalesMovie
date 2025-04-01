@@ -317,7 +317,7 @@ footer {
 }
 
 .category-title::before {
-    content: "â€¢â€¢â€¢â€¢";
+    content: "---";
     color: transparent;
     /* TODO: cambiar color por ID de la categorÃ­a */
     background-color: var(--idColor);
