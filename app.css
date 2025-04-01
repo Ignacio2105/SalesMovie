@@ -70,6 +70,17 @@ h3 {
     font-size: 16px;
 }
 
+.language-select {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    padding: 5px;
+    background: var(--purple-medium-3);
+    color: white;
+    border: 1px solid white;
+    border-radius: 5px;
+}
+
 input {
     background-color: var(--purple-light-2);
     color: var(--purple-medium-2);

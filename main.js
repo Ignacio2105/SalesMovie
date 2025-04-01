@@ -6,9 +6,50 @@ const API = axios.create({
     },
     params: {
         'api_key': API_KEY,
-        'language': navigator.language ||'es-ES',
+        'language': localStorage.getItem('selectedLanguage') || navigator.language || 'es-ES',
     }
 });
+
+// Configurar selector de idioma
+const languageSelect = document.getElementById('languageSelect');
+
+// Establecer idioma inicial
+const savedLanguage = localStorage.getItem('selectedLanguage');
+if (savedLanguage) {
+    languageSelect.value = savedLanguage;
+} else {
+    const browserLang = navigator.language;
+    languageSelect.value = browserLang.startsWith('es') ? 'es-ES' : 
+    browserLang.startsWith('fr') ? 'fr-FR' : 'en-US';
+}
+
+// Manejar cambio de idioma
+languageSelect.addEventListener('change', async (e) => {
+    const newLanguage = e.target.value;
+    localStorage.setItem('selectedLanguage', newLanguage);
+    API.defaults.params.language = newLanguage;
+    await reloadCurrentView();
+});
+
+// Recargar vista actual
+async function reloadCurrentView() {
+    const hash = window.location.hash;
+    
+    if (hash.startsWith('#category')) {
+        const [categoryId] = hash.split('=')[1].split('-');
+        await getMoviesByCategory(categoryId);
+    } else if (hash.startsWith('#movie')) {
+        const movieId = hash.split('=')[1];
+        await getMovieById(movieId);
+    } else if (hash.startsWith('#search')) {
+        const query = hash.split('=')[1];
+        await getMovieBySearch(decodeURIComponent(query));
+    } else {
+        await getTrendingMoviePreview();
+        await getCategoriesPreview();
+        if (hash === '#liked') getLikedMovies();
+    }
+}
 
 function likedMoviesList(){
     const item =JSON.parse(localStorage.getItem('liked_movies'));
@@ -66,12 +107,11 @@ function createMovies(movies, container, {lazyLoad = true,clean =true}={}) {
         const movieBtn = document.createElement('button');
         movieBtn.classList.add('movie-btn');
         likedMoviesList()[movie.id] && movieBtn.classList.add('movie-btn--liked');
-        movieBtn.addEventListener('click',()=>{
-            movieBtn.classList.toggle('movie-btn--liked');
-            //Agregar pelicula a local storage
-            likeMovie(movie);
-            getLikedMovies();
-        } );
+        movieBtn.addEventListener('click', async () => {
+    movieBtn.classList.toggle('movie-btn--liked');
+    likeMovie(movie);
+    await getLikedMovies();
+});
 
         if (lazyLoad)
             lazyLoader.observe(movieImage); //se observa la imagen
@@ -279,8 +319,16 @@ async function getRelatedMoviesById(id) {
     }
 }
 
-function getLikedMovies() {
+async function getLikedMovies() {
     const likedMovies = likedMoviesList();
-    const moviesArray = Object.values(likedMovies);
-    createMovies(moviesArray, likedMoviesListArticle, {lazyLoad: true, clean: true});
+    const movieIds = Object.keys(likedMovies).filter(id => likedMovies[id]);
+    
+    try {
+        const movies = await Promise.all(
+            movieIds.map(id => API(`movie/${id}`).then(res => res.data)
+        ));
+        createMovies(movies, likedMoviesListArticle, {lazyLoad: true, clean: true});
+    } catch (error) {
+        console.error('Error fetching liked movies:', error);
+    }
 }
